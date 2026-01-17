@@ -1,0 +1,248 @@
+# Règles Cursor - Trakto - Clean Code
+
+## 🎯 Principes fondamentaux
+- Toujours vérifier si un composant existant peut être réutilisé avant d'en créer un nouveau
+- Privilégier la réutilisabilité et l'abstraction intelligente
+- Code DRY (Don't Repeat Yourself) - éviter la duplication
+- Code succinct et expressif - chaque ligne doit avoir un but
+- Segmentation claire pour maintenir la lisibilité
+
+## 📦 TypeScript - Typage strict
+
+### Règles de typage
+- JAMAIS utiliser le type `any` - toujours définir des types explicites
+- Utiliser `unknown` plutôt que `any` si un type est vraiment inconnu
+- Préférer `interface` à `type` pour les objets et props de composants
+- Toujours typer explicitement les props de composants avec une interface séparée
+- Utiliser `Readonly<T>` pour les props de composants React
+- Préférer les types union (`'a' | 'b'`) aux enums quand possible
+- Typer explicitement les fonctions, notamment les callbacks
+
+### Nommage des types
+- Interfaces de props : `ComponentNameProps` (ex: `ButtonProps`, `UserCardProps`)
+- Types utilitaires : PascalCase avec un nom descriptif
+- Types union : préférer les literal types plutôt que les enums
+
+## ⚛️ React/Next.js - Bonnes pratiques
+
+### Structure des composants
+- Un composant par fichier
+- Nom du fichier en PascalCase correspondant au nom du composant (ex: `UserProfile.tsx` pour `UserProfile`)
+- Toujours typer les props avec une interface séparée exportée si réutilisable
+- Préférer les composants serveur (par défaut dans Next.js 16)
+- Utiliser `const ComponentName` plutôt que `function ComponentName`
+- Composants fonctionnels uniquement
+
+### Exports
+- `export default` uniquement pour les composants de page (`app/**/page.tsx`) et layout (`app/**/layout.tsx`)
+- Composants réutilisables : `export` nommés uniquement
+- Exporter les types/interfaces depuis le même fichier ou un fichier dédié `types/`
+
+### Hooks React
+- Toujours fournir toutes les dépendances dans les arrays de dépendances
+- Préférer `useState<T>` avec type explicite
+- Utiliser `useCallback`/`useMemo` uniquement si nécessaire (optimisation mesurée)
+- Éviter les hooks personnalisés inutiles - privilégier la simplicité
+
+## 🗂️ Organisation du code
+
+### Structure de dossiers
+```
+app/              # Pages et layouts Next.js
+components/       # Composants réutilisables (PascalCase)
+  ui/            # Composants UI de base (Button, Input, etc.)
+lib/             # Utilitaires et helpers
+types/           # Types TypeScript partagés
+utils/           # Fonctions utilitaires
+```
+
+### Règles d'organisation
+- Un composant = un fichier
+- Composants réutilisables dans `components/`
+- Types partagés dans `types/` ou colocalisés avec le composant si spécifique
+- Utilitaires dans `lib/` ou `utils/`
+- Segmentation : diviser les gros fichiers en modules logiques
+
+### Imports
+- Ordre des imports : React/Next → bibliothèques externes → internes → types → styles
+- Toujours utiliser les imports absolus avec `@/` plutôt que relatifs `../../`
+- Grouper les imports par catégorie avec une ligne vide entre chaque groupe
+
+## 🏷️ Nommage
+
+### Composants et fichiers
+- Composants : PascalCase (`UserProfile`, `NavigationBar`)
+- Fichiers de composants : PascalCase correspondant au nom (`UserProfile.tsx`)
+
+### Code JavaScript/TypeScript
+- Variables et fonctions : camelCase (`getUserData`, `handleSubmit`)
+- Constantes : UPPER_SNAKE_CASE (`API_BASE_URL`, `MAX_RETRY_COUNT`)
+- Types/Interfaces : PascalCase (`User`, `ApiResponse`, `ButtonProps`)
+
+## ✍️ Formatage et style
+
+### Style de code
+- Guillemets doubles pour les strings
+- Point-virgule obligatoire
+- Indentation : 2 espaces
+- Longueur de ligne max : 100 caractères (préférer le retour à la ligne)
+- Pas d'espaces en fin de ligne
+- Ligne vide à la fin des fichiers
+- Utiliser des trailing commas dans les objets/arrays multilignes
+
+### JSX/TSX
+- Props sur plusieurs lignes si plus de 2 props
+- Préférer les props auto-fermantes pour les composants sans enfants
+- Utiliser des fragments (`<>...</>`) plutôt que des divs wrapper inutiles
+
+## 🔧 Fonctions et logique
+
+### Règles de fonction
+- Code DRY : extraire la logique répétée en fonctions utilitaires
+- Une fonction = une responsabilité claire
+- Maximum 3-4 paramètres (sinon utiliser un objet de paramètres)
+- Noms de fonctions verbeux et explicites (`handleFormSubmit` plutôt que `onClick`)
+- Early returns pour réduire la complexité et améliorer la lisibilité
+- Fonctions courtes (idéalement < 30 lignes, max 50)
+- Code succinct : éviter le code verbeux inutile
+
+### Exemples à éviter
+```typescript
+// ❌ Éviter
+const data = items.map((item) => {
+  return item.name;
+});
+
+// ✅ Préférer
+const data = items.map(item => item.name);
+```
+
+## 🚨 Gestion des erreurs
+
+- Toujours gérer les erreurs (try/catch, .catch() pour les promesses)
+- Messages d'erreur explicites et utiles
+- Loguer les erreurs en développement pour le debugging
+- Éviter les try/catch silencieux sans traitement
+
+## ⚡ Performance Next.js
+
+- Toujours utiliser `next/image` plutôt que `<img>` natif
+- Utiliser `next/font` pour les polices (déjà en place)
+- Lazy loading des composants lourds avec `dynamic()` de Next.js
+- Éviter les inline functions dans JSX si elles causent des re-renders
+- Optimiser les imports (éviter les imports wildcard `*`)
+
+## ♿ Accessibilité
+
+- Toujours inclure `alt` descriptif sur les images
+- Utiliser des éléments HTML sémantiques appropriés
+- Gérer le focus clavier pour les interactions
+- ARIA labels quand le HTML sémantique ne suffit pas
+- Contraste de couleurs suffisant (suivi par Tailwind)
+
+## 🎨 CSS/Tailwind
+
+### Règles Tailwind
+- Préférer les classes Tailwind aux styles inline
+- Extraire les classes répétitives en composants réutilisables plutôt qu'en variables CSS
+- Utiliser les variants Tailwind (`hover:`, `dark:`, etc.) plutôt que les conditions JS
+- Éviter `!important` sauf cas spécifiques documentés
+- Organiser les classes : layout → spacing → typography → colors → effects
+
+### Exemple
+```tsx
+// ❌ Éviter la duplication
+<div className="px-4 py-2 bg-blue-500 text-white rounded">Button</div>
+<div className="px-4 py-2 bg-blue-500 text-white rounded">Button 2</div>
+
+// ✅ Extraire en composant réutilisable
+<Button>Button</Button>
+<Button>Button 2</Button>
+```
+
+## 🔒 Sécurité
+
+- Sanitizer tous les inputs utilisateur
+- Valider les données côté serveur (Next.js API routes)
+- Toujours utiliser `rel="noopener noreferrer"` sur les liens externes (`target="_blank"`)
+- Ne jamais exposer de secrets, tokens ou clés API dans le code client
+
+## 📝 Commentaires et documentation
+
+### Règles de documentation
+- Code auto-documenté : noms de variables/fonctions clairs et explicites
+- Commentaires uniquement pour expliquer le "pourquoi", pas le "quoi"
+- JSDoc uniquement pour les fonctions publiques/complexes nécessitant une documentation
+- **Pas de fichiers Markdown (README, CHANGELOG, etc.) sauf absolument nécessaire**
+
+### Exemples
+```typescript
+// ❌ Commentaire inutile
+// Incrémente le compteur
+counter++;
+
+// ✅ Code auto-documenté
+incrementCounter();
+
+// ✅ Commentaire utile (explique le pourquoi)
+// Utiliser requestIdleCallback pour éviter de bloquer le thread principal
+requestIdleCallback(() => {
+  processLargeDataset();
+});
+```
+
+## 🔄 Réutilisabilité des composants
+
+### Processus de création
+1. **Toujours rechercher** d'abord dans `components/` si un composant similaire existe
+2. Si un composant existe mais n'est pas parfait : l'étendre avec des props plutôt que créer un nouveau
+3. Si aucun composant approprié : créer un composant réutilisable dans `components/`
+4. Éviter les composants trop spécifiques qui ne seront utilisés qu'une fois
+
+### Abstractions
+- Créer des composants de base réutilisables dans `components/ui/`
+- Utiliser la composition plutôt que la duplication
+- Props génériques avec TypeScript pour la flexibilité
+
+## 🎯 Segmentation du code
+
+### Principes
+- Diviser les gros composants (> 150 lignes) en sous-composants
+- Extraire la logique métier des composants dans des fonctions utilitaires
+- Séparer les types, constantes et utilitaires dans des fichiers dédiés si réutilisables
+- Maintenir chaque fichier focalisé sur une seule responsabilité
+
+### Exemple de segmentation
+```typescript
+// ❌ Composant monolithique
+export function UserProfile() {
+  // 200 lignes de logique et JSX mélangés
+}
+
+// ✅ Composant segmenté
+// UserProfile.tsx
+import { UserHeader } from './UserHeader';
+import { UserStats } from './UserStats';
+import { useUserData } from '@/lib/hooks/useUserData';
+
+export function UserProfile({ userId }: UserProfileProps) {
+  const user = useUserData(userId);
+  return (
+    <div>
+      <UserHeader user={user} />
+      <UserStats user={user} />
+    </div>
+  );
+}
+```
+
+## 🚫 À éviter absolument
+
+- ❌ Type `any`
+- ❌ Duplication de code (DRY)
+- ❌ Composants trop spécifiques non réutilisables
+- ❌ Fichiers trop longs (> 300 lignes)
+- ❌ Tests unitaires (pas demandés par le projet)
+- ❌ Documentation Markdown inutile
+- ❌ Code verbeux et répétitif
+- ❌ Imports relatifs `../../` au lieu de `@/`
