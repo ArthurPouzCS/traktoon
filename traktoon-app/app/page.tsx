@@ -153,9 +153,17 @@ export default function Home() {
       {/* Header */}
       <header className="w-[98%] px-6 py-6 flex items-center justify-between">
         <div className="text-xl ml-2 font-semibold text-white">Traktoon</div>
-        <button className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
-          Get started
-        </button>
+        <div className="flex items-center gap-3">
+          <a
+            href="/connections"
+            className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            Connexions
+          </a>
+          <button className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
+            Get started
+          </button>
+        </div>
       </header>
 
       {/* Main Content */}
