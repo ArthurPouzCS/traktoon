@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { postTweet } from '@/lib/x/client';
+import { trackPost } from '@/lib/analytics';
 import type { GoToMarketPlan, ChannelPlan } from '@/types/plan';
 
 /**
@@ -99,10 +100,31 @@ async function executeXPlan(plan: ChannelPlan) {
     mediaUrl: mainTweet.mediaUrl,
   });
   
+  // Track the post for analytics if successful
+  let trackedPostId: string | undefined;
+  if (result.success && result.tweetId) {
+    try {
+      const trackedPost = await trackPost({
+        channel: 'X',
+        platformPostId: result.tweetId,
+        platformUrl: result.tweetUrl || `https://x.com/i/status/${result.tweetId}`,
+        content: mainTweet.text,
+        target: plan.target || 'General',
+        campaign: plan.sequence,
+      });
+      trackedPostId = trackedPost.id;
+      console.log('[Executor] Post tracked for analytics:', trackedPostId);
+    } catch (trackError) {
+      console.error('[Executor] Failed to track post:', trackError);
+      // Don't fail the whole operation if tracking fails
+    }
+  }
+  
   return {
     success: result.success,
     tweetId: result.tweetId,
     tweetUrl: result.tweetUrl,
+    trackedPostId,  // Include tracking ID for later analysis
     error: result.error,
     tweetsPlanned: tweets.length,
     tweetsPosted: result.success ? 1 : 0,
