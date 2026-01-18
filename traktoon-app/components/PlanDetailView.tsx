@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { DetailedPlan } from "@/types/detailed-plan";
+import type { DetailedPlan, DetailedPost } from "@/types/detailed-plan";
 import { useCountdown, copyToClipboard } from "@/lib/utils/detailed-plan";
 import type { ChannelPlan } from "@/types/plan";
+import { EmailDetailView } from "./EmailDetailView";
 
 interface PostCountdownProps {
   scheduledDate: string;
@@ -31,6 +32,10 @@ const channelColors: Record<string, { accent: string; light: string }> = {
 };
 
 export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readonly<PlanDetailViewProps>) => {
+  // Si c'est le canal Email, utiliser EmailDetailView
+  if (channelPlan.channel === "Email") {
+    return <EmailDetailView detailedPlan={detailedPlan} channelPlan={channelPlan} onFlipBack={onFlipBack} />;
+  }
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
@@ -103,7 +108,7 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
     document.body.removeChild(link);
   };
 
-  const handleExecutePost = async (postIndex: number, post: typeof detailedPlan.posts[0]) => {
+  const handleExecutePost = async (postIndex: number, post: DetailedPost) => {
     // Uniquement pour X
     if (channelPlan.channel !== "X") {
       return;
@@ -119,7 +124,7 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
     try {
       // Construire le texte avec hashtags
       const hashtagsText = post.hashtags && post.hashtags.length > 0
-        ? ` ${post.hashtags.map((tag) => tag.startsWith("#") ? tag : `#${tag}`).join(" ")}`
+        ? ` ${post.hashtags.map((tag: string) => tag.startsWith("#") ? tag : `#${tag}`).join(" ")}`
         : "";
       const fullText = `${post.postDescription}${hashtagsText}`.trim();
 
@@ -274,13 +279,14 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
       </div>
 
       {/* Posts Sequence Section */}
-      <div className="space-y-4 pt-4 border-t border-gray-300">
-        <h4 className="text-lg font-semibold text-gray-900 uppercase tracking-wide">
-          Séquence de posts ({detailedPlan.posts.length})
-        </h4>
+      {detailedPlan.posts && detailedPlan.posts.length > 0 && (
+        <div className="space-y-4 pt-4 border-t border-gray-300">
+          <h4 className="text-lg font-semibold text-gray-900 uppercase tracking-wide">
+            Séquence de posts ({detailedPlan.posts.length})
+          </h4>
 
-        <div className="space-y-6">
-          {detailedPlan.posts.map((post, idx) => {
+          <div className="space-y-6">
+            {detailedPlan.posts.map((post, idx) => {
             return (
               <div key={idx} className="bg-white/60 border border-gray-200 rounded-lg p-6 space-y-4">
                 <div className="flex items-center justify-between pb-4 border-b border-gray-300">
@@ -422,10 +428,10 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
                             : "bg-blue-600 hover:bg-blue-700 text-white"
                         }`}
                       >
-                        {executingPosts[idx]
-                          ? "Publication en cours..."
-                          : executedPosts[idx]
+                        {executedPosts[idx]
                           ? "✓ Publié"
+                          : executingPosts[idx]
+                          ? "Publication en cours..."
                           : "Exécuter"}
                       </button>
                     </div>
@@ -433,9 +439,10 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
                 </div>
               </div>
             );
-          })}
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

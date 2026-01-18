@@ -11,7 +11,15 @@ export interface DetailedPost {
   hashtags?: string[];
 }
 
+export interface DetailedEmail {
+  scheduledDate: string; // ISO format
+  subject: string;
+  bodyHtml: string;
+  bodyText?: string;
+}
+
 export interface DetailedPlan {
   accountSetup: AccountSetup;
-  posts: DetailedPost[];
+  posts?: DetailedPost[]; // Pour réseaux sociaux
+  emails?: DetailedEmail[]; // Pour canal Email (mutuellement exclusif)
 }

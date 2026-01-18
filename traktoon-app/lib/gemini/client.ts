@@ -221,7 +221,56 @@ export async function generateDetailedPlan(channelPlan: ChannelPlan): Promise<De
         year: "numeric",
       });
 
-      const fullContext = `
+      const isEmailChannel = channelPlan.channel === "Email";
+      
+      const fullContext = isEmailChannel ? `
+Plan du channel actuel:
+- Channel: ${channelPlan.channel}
+- Séquence: ${channelPlan.sequence}
+- Contenu: ${channelPlan.content}
+- Cible: ${channelPlan.target}
+${channelPlan.description ? `- Description: ${channelPlan.description}` : ""}
+- Étapes: ${JSON.stringify(channelPlan.steps, null, 2)}
+
+Date actuelle: ${currentDateReadable} (ISO: ${currentDateISO})
+
+Tu dois générer un plan détaillé "copié-collé" pour faciliter l'envoi d'emails pour le canal ${channelPlan.channel}.
+Ce plan doit être actionnable et prêt à l'emploi, avec toutes les informations nécessaires pour:
+1. Créer/compléter le compte sur la plateforme email (URL exacte, nom de compte suggéré, étapes si besoin)
+2. Envoyer une séquence d'emails avec:
+   - Dates précises d'envoi FUTURES (format ISO 8601) - les dates doivent être POSTÉRIEURES à la date actuelle
+   - Sujets d'emails percutants et clairs
+   - Corps d'emails complets en HTML (prêts à utiliser)
+   - Version texte des emails (optionnelle mais recommandée)
+
+Le plan doit être pratique et permettre à l'utilisateur d'implémenter facilement le plan go-to-market email.
+
+Réponds UNIQUEMENT avec un JSON valide respectant exactement ce schéma:
+{
+  "accountSetup": {
+    "registrationUrl": "https://url-exacte-pour-creer-le-compte",
+    "accountName": "nom-suggere-pour-le-compte",
+    "steps": ["Étape 1 optionnelle", "Étape 2 optionnelle"]
+  },
+  "emails": [
+    {
+      "scheduledDate": "2026-01-20T10:00:00Z",
+      "subject": "Sujet de l'email percutant et clair",
+      "bodyHtml": "<html><body><p>Corps de l'email en HTML complet et professionnel, prêt à être envoyé.</p></body></html>",
+      "bodyText": "Version texte de l'email (optionnel mais recommandé)"
+    }
+  ]
+}
+
+IMPORTANT: 
+- Les dates doivent être FUTURES et POSTÉRIEURES à la date actuelle (${currentDateReadable})
+- Les dates doivent être réalistes et espacées selon une séquence logique (par exemple: premier email dans 2-3 jours, puis un email tous les 3-5 jours)
+- Utilise des dates en 2026 ou au-delà selon la date actuelle fournie
+- Les sujets doivent être percutants et clairs
+- Les corps HTML doivent être complets, professionnels et prêts à être envoyés
+- Les corps texte doivent être des versions alternatives sans HTML
+- Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans markdown, sans code blocks.
+` : `
 Plan du channel actuel:
 - Channel: ${channelPlan.channel}
 - Séquence: ${channelPlan.sequence}
