@@ -344,3 +344,93 @@ export async function generateImage(prompt: string): Promise<string> {
     throw new Error("Erreur inconnue lors de la génération d'image");
   }
 }
+
+interface SiteAnalysisInput {
+  url: string;
+  pages?: Array<{
+    url: string;
+    content: unknown;
+    design: unknown;
+  }>;
+  content?: unknown;
+  design?: unknown;
+}
+
+interface SiteAnalysisOutput {
+  backgroundDescription: string;
+}
+
+export async function generateSiteAnalysis(
+  input: SiteAnalysisInput,
+): Promise<SiteAnalysisOutput> {
+  let lastError: Error | null = null;
+
+  const { url, pages, content, design } = input;
+  const payload =
+    pages && pages.length > 0
+      ? { pages: pages.slice(0, 3) }
+      : { content, design };
+
+  const serialized = JSON.stringify(payload);
+  const trimmedPayload =
+    serialized.length > 12000 ? `${serialized.slice(0, 12000)}...` : serialized;
+
+  for (const modelName of MODEL_NAMES) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const prompt = `
+You are a product/marketing analyst. Based on the crawl data below for ${url},
+write a detailed, factual summary of the site's primary purpose, the type of
+product/service, key features or sections, target audience, and the value delivered.
+Use 3 to 5 full sentences in English. Do NOT mention design, colors, layout, or UI.
+Respond ONLY with valid JSON matching this schema:
+{
+  "backgroundDescription": "detailed and precise text in English"
+}
+
+IMPORTANT: Respond ONLY with the JSON, no extra text, no markdown.
+
+Crawl data (JSON):
+${trimmedPayload}
+`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      let jsonText = text.trim();
+      if (jsonText.startsWith("```json")) {
+        jsonText = jsonText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+      } else if (jsonText.startsWith("```")) {
+        jsonText = jsonText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      }
+
+      const parsed = JSON.parse(jsonText) as SiteAnalysisOutput;
+      if (!parsed || typeof parsed.backgroundDescription !== "string") {
+        throw new Error("Réponse Gemini invalide: backgroundDescription manquant");
+      }
+
+      return parsed;
+    } catch (error) {
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        if (
+          errorMessage.includes("not found") ||
+          errorMessage.includes("not supported") ||
+          errorMessage.includes("404")
+        ) {
+          lastError = error;
+          continue;
+        }
+        throw new Error(`Erreur lors de l'analyse du site: ${error.message}`);
+      }
+      lastError = error instanceof Error ? error : new Error("Erreur inconnue");
+      continue;
+    }
+  }
+
+  throw new Error(
+    `Aucun modèle disponible. Dernière erreur: ${lastError?.message || "Modèle non trouvé"}`,
+  );
+}
