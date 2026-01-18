@@ -49,3 +49,10 @@ export function getRedditRedirectUri(): string {
 export function getInstagramRedirectUri(): string {
   return getRedirectUri("/api/auth/instagram/callback");
 }
+
+/**
+ * Génère l'URL de redirection pour X (Twitter) OAuth
+ */
+export function getXRedirectUri(): string {
+  return getRedirectUri("/api/x/callback");
+}

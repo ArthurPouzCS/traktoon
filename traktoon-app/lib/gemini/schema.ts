@@ -26,3 +26,16 @@ export const goToMarketPlanSchema = z.object({
 });
 
 export type GoToMarketPlanInput = z.infer<typeof goToMarketPlanSchema>;
+
+const questionItemSchema = z.object({
+  question: z.string().describe("La question à poser"),
+  proposition1: z.string().describe("Première proposition courte"),
+  proposition2: z.string().describe("Deuxième proposition courte"),
+  proposition3: z.string().describe("Troisième proposition courte"),
+});
+
+export const questionsSchema = z.object({
+  questions: z.array(questionItemSchema).min(3).max(4).describe("Liste de 3 à 4 questions avec leurs propositions"),
+});
+
+export type QuestionsInput = z.infer<typeof questionsSchema>;

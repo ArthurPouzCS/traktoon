@@ -44,27 +44,49 @@ export const QuestionForm = ({ questions, onSubmit }: Readonly<QuestionFormProps
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-6">
       {questions.map((question) => {
-        const isTextarea = question.type === "textarea";
-        const InputComponent = isTextarea ? "textarea" : "input";
         const hasError = !!errors[question.id];
+        const hasPropositions = question.propositions && question.propositions.length > 0;
+        const currentAnswer = answers[question.id] || "";
 
         return (
-          <div key={question.id} className="flex flex-col gap-2">
+          <div key={question.id} className="flex flex-col gap-3">
             <label htmlFor={question.id} className="text-base text-zinc-400">
               {question.label}
               {question.required && <span className="text-red-400 ml-1">*</span>}
             </label>
-            <InputComponent
+            
+            {hasPropositions && (
+              <div className="flex flex-wrap gap-2">
+                {question.propositions.map((proposition, index) => {
+                  const isSelected = currentAnswer === proposition;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => handleChange(question.id, proposition)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isSelected
+                          ? "bg-white text-black"
+                          : "bg-zinc-900 border border-zinc-800 text-white hover:bg-zinc-800"
+                      }`}
+                    >
+                      {proposition}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            
+            <input
               id={question.id}
-              value={answers[question.id] || ""}
+              type="text"
+              value={currentAnswer}
               onChange={(e) => handleChange(question.id, e.target.value)}
-              placeholder={question.placeholder}
+              placeholder={question.placeholder || "Votre réponse libre..."}
               required={question.required}
               className={`w-full h-14 px-4 bg-zinc-900 border ${
                 hasError ? "border-red-500" : "border-zinc-800"
-              } rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent text-base ${
-                isTextarea ? "min-h-[120px] py-4 resize-none" : ""
-              }`}
+              } rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent text-base`}
             />
             {hasError && (
               <span className="text-red-400 text-sm">{errors[question.id]}</span>

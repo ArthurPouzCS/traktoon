@@ -17,8 +17,8 @@ const SOCIAL_PROVIDERS: SocialProviderConfig[] = [
     id: "twitter",
     name: "Twitter/X",
     logo: "/logos/twitter.png",
-    enabled: false,
-    description: "Bientôt disponible",
+    enabled: true,
+    description: "Connectez votre compte X pour publier des tweets",
   },
   {
     id: "instagram",
@@ -91,14 +91,21 @@ export const ConnectionSocial = () => {
   };
 
   const handleConnect = async (provider: SocialProvider) => {
-    if (provider !== "reddit" && provider !== "instagram") {
-      return; // Seuls Reddit et Instagram sont actifs pour l'instant
+    if (provider !== "reddit" && provider !== "instagram" && provider !== "twitter") {
+      return; // Seuls Reddit, Instagram et X sont actifs pour l'instant
     }
 
     setConnecting(provider);
     try {
       // Rediriger vers la route d'initiation OAuth
-      const route = provider === "reddit" ? "/api/auth/reddit/initiate" : "/api/auth/instagram/initiate";
+      let route: string;
+      if (provider === "reddit") {
+        route = "/api/auth/reddit/initiate";
+      } else if (provider === "instagram") {
+        route = "/api/auth/instagram/initiate";
+      } else {
+        route = "/api/x/auth";
+      }
       window.location.href = route;
     } catch (error) {
       console.error("Error connecting:", error);
@@ -128,7 +135,7 @@ export const ConnectionSocial = () => {
     const success = searchParams.get("success");
     const error = searchParams.get("error");
 
-    if (success === "reddit_connected" || success === "instagram_connected") {
+    if (success === "reddit_connected" || success === "instagram_connected" || success === "x_connected") {
       loadConnections();
       // Nettoyer l'URL
       window.history.replaceState({}, "", window.location.pathname);

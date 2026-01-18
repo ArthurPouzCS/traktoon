@@ -12,4 +12,5 @@ export interface QuestionConfig {
   type: "text" | "textarea";
   required: boolean;
   placeholder?: string;
+  propositions?: string[];
 }

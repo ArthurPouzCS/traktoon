@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
 const TWEET_ENDPOINT = 'https://api.twitter.com/2/tweets';
 
@@ -9,11 +10,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing text field' }, { status: 400 });
   }
 
-  const accessToken = process.env.X_ACCESS_TOKEN;
+  // Récupérer le token depuis les cookies
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get('x_access_token')?.value || process.env.X_ACCESS_TOKEN;
 
   if (!accessToken) {
     return NextResponse.json(
-      { error: 'No access token configured. Please authorize first.' },
+      { error: 'No access token found. Please authorize first.' },
       { status: 401 }
     );
   }

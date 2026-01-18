@@ -1,8 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { goToMarketPlanSchema } from "./schema";
+import { goToMarketPlanSchema, questionsSchema } from "./schema";
 import type { GoToMarketPlan } from "@/types/plan";
 import type { QuestionConfig } from "@/types/conversation";
-import { generateQuestions as generateQuestionsConfig } from "./questions-config";
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -20,7 +19,89 @@ const MODEL_NAMES = [
 ] as const;
 
 export async function generateQuestions(prompt: string): Promise<QuestionConfig[]> {
-  return generateQuestionsConfig(prompt);
+  let lastError: Error | null = null;
+
+  for (const modelName of MODEL_NAMES) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const fullContext = `
+Prompt initial: ${prompt}
+
+Génère 3 à 4 questions pertinentes pour mieux comprendre le projet et créer un plan go-to-market efficace.
+Chaque question doit avoir 3 propositions courtes (2-4 mots chacune) qui peuvent servir de réponses rapides.
+
+Réponds UNIQUEMENT avec un JSON valide respectant exactement ce schéma:
+{
+  "questions": [
+    {
+      "question": "Texte de la question",
+      "proposition1": "Proposition courte 1",
+      "proposition2": "Proposition courte 2",
+      "proposition3": "Proposition courte 3"
+    }
+  ]
+}
+
+Les questions doivent être pertinentes pour comprendre:
+- Le produit/service
+- La cible
+- Les objectifs
+- Le contexte (budget, délais, etc.)
+
+IMPORTANT: Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans markdown, sans code blocks.
+`;
+
+      const result = await model.generateContent(fullContext);
+      const response = await result.response;
+      const text = response.text();
+
+      let jsonText = text.trim();
+
+      if (jsonText.startsWith("```json")) {
+        jsonText = jsonText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+      } else if (jsonText.startsWith("```")) {
+        jsonText = jsonText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      }
+
+      const parsed = JSON.parse(jsonText);
+      const validated = questionsSchema.parse(parsed);
+
+      // Transformer en QuestionConfig[]
+      const questions: QuestionConfig[] = validated.questions.map((q, index) => ({
+        id: `question-${index + 1}`,
+        label: q.question,
+        type: "text" as const,
+        required: true,
+        placeholder: "Votre réponse libre...",
+        propositions: [q.proposition1, q.proposition2, q.proposition3],
+      }));
+
+      return questions;
+    } catch (error) {
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        // Si c'est une erreur de modèle non trouvé, essayer le suivant
+        if (
+          errorMessage.includes("not found") ||
+          errorMessage.includes("not supported") ||
+          errorMessage.includes("404")
+        ) {
+          lastError = error;
+          continue;
+        }
+        // Sinon, c'est une autre erreur (parsing, validation, etc.), la propager
+        throw new Error(`Erreur lors de la génération des questions: ${error.message}`);
+      }
+      lastError = error instanceof Error ? error : new Error("Erreur inconnue");
+      continue;
+    }
+  }
+
+  // Si tous les modèles ont échoué
+  throw new Error(
+    `Aucun modèle disponible. Dernière erreur: ${lastError?.message || "Modèle non trouvé"}`,
+  );
 }
 
 export async function generatePlan(
