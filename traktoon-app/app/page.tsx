@@ -43,19 +43,58 @@ export default function Home() {
     checkAuth();
   }, [router]);
 
+  const normalizeUrlOnlyInput = (value: string): string | null => {
+    const trimmed = value.trim();
+    if (!trimmed || /\s/.test(trimmed)) return null;
+    const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const url = new URL(candidate);
+      return url.hostname ? url.toString() : null;
+    } catch {
+      return null;
+    }
+  };
+
   const handlePromptSubmit = async (userPrompt: string) => {
-    setPrompt(userPrompt);
     setError(null);
     setState("loading");
 
-    const userMessage: ConversationMessage = {
-      role: "user",
-      content: userPrompt,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMessage]);
+    const normalizedUrl = normalizeUrlOnlyInput(userPrompt);
+    let finalPrompt = userPrompt;
 
     try {
+      if (normalizedUrl) {
+        const analysisResponse = await fetch("/api/lightpanda/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            url: normalizedUrl,
+          }),
+        });
+
+        if (!analysisResponse.ok) {
+          const errorData = await analysisResponse.json();
+          throw new Error(errorData.error || "Erreur lors de l'analyse du site");
+        }
+
+        const analysisData = await analysisResponse.json();
+        if (!analysisData.prompt) {
+          throw new Error("Analyse du site incomplète: prompt manquant");
+        }
+        finalPrompt = analysisData.prompt;
+      }
+
+      setPrompt(finalPrompt);
+
+      const userMessage: ConversationMessage = {
+        role: "user",
+        content: finalPrompt,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
       const response = await fetch("/api/gemini", {
         method: "POST",
         headers: {
@@ -63,7 +102,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           type: "questions",
-          prompt: userPrompt,
+          prompt: finalPrompt,
         }),
       });
 
@@ -161,6 +200,8 @@ export default function Home() {
     setDetailedPlans(null);
     setError(null);
   };
+
+  const promptRows = Math.min(12, Math.max(3, Math.ceil(prompt.length / 90)));
 
   const handleInputSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -338,11 +379,11 @@ export default function Home() {
             <div className="w-full mt-8 pt-8 border-t border-zinc-800">
               <div className="w-full space-y-3">
                 <label className="text-sm text-zinc-400">Votre idée de produit</label>
-                <input
-                  type="text"
+                <textarea
                   value={prompt}
-                  disabled
-                  className="w-full h-14 px-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-base text-center opacity-60 cursor-not-allowed"
+                  readOnly
+                  rows={promptRows}
+                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-base text-center opacity-60 cursor-not-allowed resize-none"
                 />
               </div>
             </div>
