@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { QuestionForm } from "@/components/QuestionForm";
 import { ConversationHistory } from "@/components/ConversationHistory";
 import { PlanDisplay } from "@/components/PlanDisplay";
+import { createClient } from "@/lib/supabase/client";
 import type { QuestionConfig } from "@/types/conversation";
 import type { ConversationMessage } from "@/types/conversation";
 import type { GoToMarketPlan } from "@/types/plan";
@@ -11,12 +13,33 @@ import type { GoToMarketPlan } from "@/types/plan";
 type AppState = "prompt" | "questions" | "loading" | "plan";
 
 export default function Home() {
+  const router = useRouter();
   const [state, setState] = useState<AppState>("prompt");
   const [prompt, setPrompt] = useState("");
   const [questions, setQuestions] = useState<QuestionConfig[]>([]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [plan, setPlan] = useState<GoToMarketPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    // Vérifier si l'utilisateur est connecté
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+      
+      setIsCheckingAuth(false);
+    };
+    
+    checkAuth();
+  }, [router]);
 
   const handlePromptSubmit = async (userPrompt: string) => {
     setPrompt(userPrompt);
@@ -125,6 +148,35 @@ export default function Home() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error("Erreur lors de la déconnexion");
+      }
+
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue lors de la déconnexion");
+    }
+  };
+
+  // Afficher un loader pendant la vérification de l'authentification
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          <p className="text-zinc-400">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Page dédiée pour le plan
   if (state === "plan" && plan) {
     return (
@@ -132,12 +184,20 @@ export default function Home() {
         {/* Header */}
         <header className="w-full px-6 py-6 flex items-center justify-between border-b border-zinc-800">
           <div className="text-xl ml-2 font-semibold text-white">Traktoon</div>
-          <button
-            onClick={handleReset}
-            className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-          >
-            Nouveau plan
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleReset}
+              className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
+              Nouveau plan
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
+              Se déconnecter
+            </button>
+          </div>
         </header>
 
         {/* Plan Display - Full Width */}
@@ -160,8 +220,11 @@ export default function Home() {
           >
             Connexions
           </a>
-          <button className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
-            Get started
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            Se déconnecter
           </button>
         </div>
       </header>
