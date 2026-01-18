@@ -89,7 +89,7 @@ export default function Home() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erreur lors de la génération du plan");
+        throw new Error(errorData.error || "Erreur lors de : génération du plan");
       }
 
       const data = await response.json();
