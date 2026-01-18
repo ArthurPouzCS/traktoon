@@ -10,31 +10,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const supabase = await createClient();
     const cookieStore = await cookies();
 
-    // Essayer de récupérer l'utilisateur authentifié, sinon créer une session temporaire
-    let userId: string;
+    // Vérifier que l'utilisateur est authentifié
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      // Si pas d'authentification Supabase, utiliser une session temporaire
-      let tempUserId = cookieStore.get("temp_user_id")?.value;
-      if (!tempUserId) {
-        // Créer un identifiant temporaire unique
-        tempUserId = crypto.randomBytes(16).toString("hex");
-        cookieStore.set("temp_user_id", tempUserId, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30, // 30 jours
-          path: "/",
-        });
-      }
-      userId = tempUserId;
-    } else {
-      userId = user.id;
+      // Rediriger vers la page de login
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', '/api/auth/reddit/initiate');
+      return NextResponse.redirect(loginUrl.toString());
     }
+
+    const userId = user.id;
 
     // Générer l'URL de redirection dynamiquement à partir de la base URL
     const redirectUri = process.env.REDDIT_REDIRECT_URI || getRedditRedirectUri();

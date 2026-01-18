@@ -122,6 +122,7 @@ ${Object.entries(answers)
   .join("\n")}
 
 Génère un plan go-to-market avec les 3 meilleurs channels pour ce produit/service.
+Tu es expert en Go to market, tu ne génères que des plans très pertinents et efficaces. Texte court et percutant.
 Pour chaque channel, fournis:
 - Le nom du channel
 - La séquence paramétrée (workflow détaillé)

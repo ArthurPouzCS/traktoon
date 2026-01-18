@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { getXRedirectUri } from '@/lib/utils/redirect-uri';
+import { createClient } from '@/lib/supabase/server';
 
 // OAuth 2.0 with PKCE
 // Step 1: Generate authorization URL
@@ -29,9 +30,30 @@ export async function GET(request: NextRequest) {
     }
 
     const cookieStore = await cookies();
+    const supabase = await createClient();
+
+    // Vérifier que l'utilisateur est authentifié
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      // Rediriger vers la page de login
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', '/api/x/auth');
+      return NextResponse.redirect(loginUrl.toString());
+    }
+
+    const userId = user.id;
 
     // Générer l'URL de redirection dynamiquement à partir de la base URL
     const redirectUri = process.env.X_REDIRECT_URI || getXRedirectUri();
+
+    // Log pour debug (important pour vérifier l'URL enregistrée dans le portail)
+    console.log('[X OAuth] Redirect URI:', redirectUri);
+    console.log('[X OAuth] Client ID:', CLIENT_ID);
+    console.log('[X OAuth] Scopes:', SCOPES.join(' '));
 
     const { codeVerifier, codeChallenge } = generatePKCE();
     const state = crypto.randomBytes(16).toString('hex');
@@ -47,6 +69,15 @@ export async function GET(request: NextRequest) {
 
     // Stocker le state dans un cookie pour vérification au callback
     cookieStore.set('x_oauth_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 600, // 10 minutes
+      path: '/',
+    });
+
+    // Stocker aussi le user_id dans le cookie
+    cookieStore.set('x_oauth_user_id', userId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

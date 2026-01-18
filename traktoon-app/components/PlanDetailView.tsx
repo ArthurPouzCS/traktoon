@@ -35,6 +35,9 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});
   const [loadingImages, setLoadingImages] = useState<Record<number, boolean>>({});
   const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
+  const [executingPosts, setExecutingPosts] = useState<Record<number, boolean>>({});
+  const [executedPosts, setExecutedPosts] = useState<Record<number, boolean>>({});
+  const [executeErrors, setExecuteErrors] = useState<Record<number, string>>({});
   const channelColor = channelColors[channelPlan.channel] || {
     accent: "text-gray-900",
     light: "bg-gray-300/50",
@@ -98,6 +101,64 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleExecutePost = async (postIndex: number, post: typeof detailedPlan.posts[0]) => {
+    // Uniquement pour X
+    if (channelPlan.channel !== "X") {
+      return;
+    }
+
+    setExecutingPosts((prev) => ({ ...prev, [postIndex]: true }));
+    setExecuteErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[postIndex];
+      return newErrors;
+    });
+
+    try {
+      // Construire le texte avec hashtags
+      const hashtagsText = post.hashtags && post.hashtags.length > 0
+        ? ` ${post.hashtags.map((tag) => tag.startsWith("#") ? tag : `#${tag}`).join(" ")}`
+        : "";
+      const fullText = `${post.postDescription}${hashtagsText}`.trim();
+
+      // Récupérer l'image si elle existe (enlever le préfixe data:image/png;base64,)
+      const imageData = generatedImages[postIndex];
+      const imageBase64 = imageData
+        ? imageData.includes(",")
+          ? imageData.split(",")[1]
+          : imageData
+        : undefined;
+
+      const response = await fetch("/api/x", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: fullText,
+          imageBase64,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.error || errorData.error || "Erreur lors de la publication du tweet");
+      }
+
+      const data = await response.json();
+      setExecutedPosts((prev) => ({ ...prev, [postIndex]: true }));
+      console.log("Tweet publié avec succès:", data);
+    } catch (error) {
+      console.error("Erreur lors de l'exécution du post:", error);
+      setExecuteErrors((prev) => ({
+        ...prev,
+        [postIndex]: error instanceof Error ? error.message : "Erreur inconnue",
+      }));
+    } finally {
+      setExecutingPosts((prev) => ({ ...prev, [postIndex]: false }));
+    }
   };
 
   const formatDate = (dateString: string): string => {
@@ -333,6 +394,40 @@ export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readon
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Bouton Exécuter pour X */}
+                  {channelPlan.channel === "X" && (
+                    <div className="space-y-2 pt-2 border-t border-gray-300">
+                      {executeErrors[idx] && (
+                        <div className="p-3 bg-red-100 border border-red-400 rounded-lg text-red-800 text-xs">
+                          <p className="font-semibold">Erreur lors de la publication</p>
+                          <p>{executeErrors[idx]}</p>
+                        </div>
+                      )}
+                      {executedPosts[idx] && (
+                        <div className="p-3 bg-green-100 border border-green-400 rounded-lg text-green-800 text-xs">
+                          <p className="font-semibold">✓ Post publié avec succès sur X !</p>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleExecutePost(idx, post)}
+                        disabled={executingPosts[idx] || executedPosts[idx]}
+                        className={`w-full py-2.5 px-4 rounded-lg text-sm font-medium transition-colors ${
+                          executedPosts[idx]
+                            ? "bg-green-600 text-white cursor-not-allowed"
+                            : executingPosts[idx]
+                            ? "bg-gray-400 text-white cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700 text-white"
+                        }`}
+                      >
+                        {executingPosts[idx]
+                          ? "Publication en cours..."
+                          : executedPosts[idx]
+                          ? "✓ Publié"
+                          : "Exécuter"}
+                      </button>
                     </div>
                   )}
                 </div>
