@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { postTweet } from '@/lib/x/client';
+import { sendEmail, wrapInHtmlTemplate, isConfigured as isEmailConfigured } from '@/lib/email';
 import { trackPost } from '@/lib/analytics';
 import type { GoToMarketPlan, ChannelPlan } from '@/types/plan';
 
@@ -29,6 +30,13 @@ export async function POST(request: Request) {
         results.push({
           channel: 'X',
           ...xResult,
+        });
+      } else if (channelPlan.channel === 'Email') {
+        // Execute Email campaign
+        const emailResult = await executeEmailPlan(channelPlan);
+        results.push({
+          channel: 'Email',
+          ...emailResult,
         });
       } else {
         // Other channels not implemented yet
@@ -128,6 +136,109 @@ async function executeXPlan(plan: ChannelPlan) {
     error: result.error,
     tweetsPlanned: tweets.length,
     tweetsPosted: result.success ? 1 : 0,
+  };
+}
+
+/**
+ * Execute Email channel plan
+ */
+async function executeEmailPlan(plan: ChannelPlan & { 
+  recipients?: string[]; 
+  subject?: string;
+  contentType?: 'text' | 'html';
+}) {
+  // Check if email is configured
+  if (!isEmailConfigured()) {
+    return {
+      success: false,
+      error: 'Email service not configured. Set RESEND_API_KEY in .env',
+    };
+  }
+  
+  // Get recipients
+  const recipients = plan.recipients || [];
+  
+  if (recipients.length === 0) {
+    return {
+      success: false,
+      error: 'No recipients specified for Email channel',
+    };
+  }
+  
+  // Get content
+  const content = plan.content;
+  const subject = plan.subject || plan.sequence || 'Message from Tractoon';
+  
+  if (!content) {
+    return {
+      success: false,
+      error: 'No content specified for Email channel',
+    };
+  }
+  
+  console.log('[Executor] Sending email to', recipients.length, 'recipients');
+  
+  // Prepare HTML content
+  const isHtml = plan.contentType === 'html' || content.includes('<');
+  const html = isHtml ? content : wrapInHtmlTemplate(content, subject);
+  const text = isHtml ? content.replace(/<[^>]+>/g, '').trim() : content;
+  
+  // Send to all recipients
+  let sent = 0;
+  let failed = 0;
+  const errors: string[] = [];
+  
+  for (const recipient of recipients) {
+    const result = await sendEmail({
+      to: recipient,
+      subject,
+      html,
+      text,
+      tags: plan.sequence ? [plan.sequence] : undefined,
+      campaign: plan.sequence,
+    });
+    
+    if (result.success) {
+      sent++;
+    } else {
+      failed++;
+      if (result.error) {
+        errors.push(`${recipient}: ${result.error}`);
+      }
+    }
+    
+    // Small delay to avoid rate limiting
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  // Track for analytics if any were sent
+  let trackedPostId: string | undefined;
+  if (sent > 0) {
+    try {
+      const trackedPost = await trackPost({
+        channel: 'Email',
+        platformPostId: `email-${Date.now()}`,
+        platformUrl: '',
+        content: `${subject}: ${text.substring(0, 100)}...`,
+        target: plan.target || 'General',
+        campaign: plan.sequence,
+      });
+      trackedPostId = trackedPost.id;
+      console.log('[Executor] Email tracked for analytics:', trackedPostId);
+    } catch (trackError) {
+      console.error('[Executor] Failed to track email:', trackError);
+    }
+  }
+  
+  const allSuccess = failed === 0;
+  
+  return {
+    success: allSuccess,
+    trackedPostId,
+    emailsSent: sent,
+    emailsFailed: failed,
+    totalRecipients: recipients.length,
+    error: allSuccess ? undefined : `${failed} emails failed: ${errors.slice(0, 3).join('; ')}`,
   };
 }
 

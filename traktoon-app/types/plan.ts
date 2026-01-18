@@ -31,6 +31,11 @@ export interface ChannelPlan {
   description?: string;     // Description or additional info (can include media URL)
   steps: PlanStep[];
   status?: PlanStatus;
+  
+  // Email-specific fields
+  recipients?: string[];    // List of email addresses
+  subject?: string;         // Email subject line
+  contentType?: 'text' | 'html';
 }
 
 /**
@@ -53,11 +58,18 @@ export interface ChannelExecutionResult {
   success: boolean;
   error?: string;
   skipped?: boolean;
+  trackedPostId?: string;
+  
+  // X (Twitter) specific
   tweetId?: string;
   tweetUrl?: string;
-  trackedPostId?: string;
   tweetsPlanned?: number;
   tweetsPosted?: number;
+  
+  // Email specific
+  emailsSent?: number;
+  emailsFailed?: number;
+  totalRecipients?: number;
 }
 
 /**
