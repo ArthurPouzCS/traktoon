@@ -134,3 +134,80 @@ export async function createInstagramPost(
   const publishData = (await publishResponse.json()) as InstagramPostResponse;
   return publishData;
 }
+
+export interface InstagramPostMetrics {
+  impressions: number;
+  reach: number;
+  likes: number;
+  comments: number;
+  saves: number;
+  shares?: number;
+  engagement_rate: number;
+}
+
+export async function getInstagramPostMetrics(
+  userId: string,
+  postId: string,
+): Promise<InstagramPostMetrics> {
+  const { accessToken } = await getValidAccessToken(userId, "instagram");
+
+  // Récupérer les insights du post
+  const insightsParams = new URLSearchParams({
+    metric: "impressions,reach,likes,comments,saves",
+    access_token: accessToken,
+  });
+
+  const insightsResponse = await fetch(
+    `${INSTAGRAM_GRAPH_API}/${postId}/insights?${insightsParams.toString()}`,
+  );
+
+  if (!insightsResponse.ok) {
+    const errorText = await insightsResponse.text();
+    throw new Error(`Failed to get post insights: ${insightsResponse.status} ${errorText}`);
+  }
+
+  const insightsData = (await insightsResponse.json()) as {
+    data: Array<{ name: string; values: Array<{ value: number }> }>;
+  };
+
+  // Parser les métriques
+  const metrics: Partial<InstagramPostMetrics> = {
+    impressions: 0,
+    reach: 0,
+    likes: 0,
+    comments: 0,
+    saves: 0,
+    engagement_rate: 0,
+  };
+
+  for (const metric of insightsData.data) {
+    const value = metric.values[0]?.value || 0;
+    switch (metric.name) {
+      case "impressions":
+        metrics.impressions = value;
+        break;
+      case "reach":
+        metrics.reach = value;
+        break;
+      case "likes":
+        metrics.likes = value;
+        break;
+      case "comments":
+        metrics.comments = value;
+        break;
+      case "saves":
+        metrics.saves = value;
+        break;
+      case "shares":
+        metrics.shares = value;
+        break;
+    }
+  }
+
+  // Calculer le taux d'engagement
+  const totalEngagement = metrics.likes! + metrics.comments! + (metrics.saves || 0) + (metrics.shares || 0);
+  metrics.engagement_rate =
+    metrics.impressions! > 0 ? (totalEngagement / metrics.impressions!) * 100 : 0;
+
+  return metrics as InstagramPostMetrics;
+}

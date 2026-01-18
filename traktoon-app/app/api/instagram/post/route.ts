@@ -35,6 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { image_url, caption, media_type } = validationResult.data;
+    const { planId } = body;
 
     // Vérifier que l'utilisateur a une connexion Instagram
     const { data: connection, error: connectionError } = await supabase
@@ -60,9 +61,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       media_type,
     });
 
+    // Sauvegarder le post en base de données
+    
+    if (result.id) {
+      try {
+        const { error: insertError } = await supabase
+          .from("posts")
+          .insert({
+            user_id: user.id,
+            provider: "instagram",
+            provider_post_id: result.id,
+            content: caption || "",
+            media_url: image_url,
+            plan_id: planId || null,
+          });
+
+        if (insertError) {
+          console.error("[Instagram API] Error saving post to database:", insertError);
+          // Ne pas faire échouer la requête si la sauvegarde échoue
+        }
+      } catch (dbError) {
+        console.error("[Instagram API] Error saving post to database:", dbError);
+        // Ne pas faire échouer la requête si la sauvegarde échoue
+      }
+    }
+
     return NextResponse.json({
       success: true,
       post: result,
+      postId: result.id,
     });
   } catch (error) {
     console.error("Error creating Instagram post:", error);

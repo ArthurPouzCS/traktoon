@@ -98,3 +98,69 @@ export async function createRedditPost(
 
   return (await response.json()) as RedditPostResponse;
 }
+
+export interface RedditPostMetrics {
+  upvotes: number;
+  downvotes: number;
+  score: number;
+  comments: number;
+  engagement_rate: number;
+}
+
+export async function getRedditPostMetrics(
+  userId: string,
+  postId: string,
+): Promise<RedditPostMetrics> {
+  const { accessToken } = await getValidAccessToken(userId, "reddit");
+
+  const userAgent = process.env.REDDIT_USER_AGENT || "Traktoon/1.0";
+
+  // Récupérer les informations du post
+  // Reddit utilise le format "t3_<id>" pour les posts
+  const redditPostId = postId.startsWith("t3_") ? postId : `t3_${postId}`;
+
+  const response = await fetch(`${REDDIT_API_BASE}/api/info?id=${redditPostId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "User-Agent": userAgent,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to get Reddit post: ${response.status} ${errorText}`);
+  }
+
+  const data = (await response.json()) as {
+    data: {
+      children: Array<{
+        data: {
+          ups: number;
+          downs: number;
+          score: number;
+          num_comments: number;
+        };
+      }>;
+    };
+  };
+
+  if (!data.data.children || data.data.children.length === 0) {
+    throw new Error("Post not found");
+  }
+
+  const postData = data.data.children[0].data;
+
+  // Calculer le taux d'engagement (approximatif)
+  const totalEngagement = postData.ups + postData.num_comments;
+  const impressions = postData.ups + postData.downs; // Approximation
+  const engagement_rate = impressions > 0 ? (totalEngagement / impressions) * 100 : 0;
+
+  return {
+    upvotes: postData.ups,
+    downvotes: postData.downs,
+    score: postData.score,
+    comments: postData.num_comments,
+    engagement_rate,
+  };
+}

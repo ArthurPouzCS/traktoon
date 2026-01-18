@@ -188,6 +188,12 @@ export default function HistoryPage() {
             Nouveau plan
           </a>
           <a
+            href="/analytics"
+            className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            Analytics
+          </a>
+          <a
             href="/connections"
             className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
           >

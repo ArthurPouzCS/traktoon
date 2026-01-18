@@ -212,6 +212,12 @@ export default function Home() {
             >
               Historique
             </a>
+            <a
+              href="/analytics"
+              className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
+              Analytics
+            </a>
             <button
               onClick={handleReset}
               className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
@@ -246,6 +252,12 @@ export default function Home() {
             className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
           >
             Historique
+          </a>
+          <a
+            href="/analytics"
+            className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            Analytics
           </a>
           <a
             href="/connections"

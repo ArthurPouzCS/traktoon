@@ -35,6 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const { subreddit, title, text } = validationResult.data;
+    const { planId } = body;
 
     // Vérifier que l'utilisateur a une connexion Reddit
     const { data: connection, error: connectionError } = await supabase
@@ -63,9 +64,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Sauvegarder le post en base de données
+    const redditPostId = result.json.data?.id || result.json.data?.name;
+
+    if (redditPostId) {
+      try {
+        const { error: insertError } = await supabase
+          .from("posts")
+          .insert({
+            user_id: user.id,
+            provider: "reddit",
+            provider_post_id: redditPostId,
+            content: `${title}\n\n${text}`,
+            plan_id: planId || null,
+          });
+
+        if (insertError) {
+          console.error("[Reddit API] Error saving post to database:", insertError);
+          // Ne pas faire échouer la requête si la sauvegarde échoue
+        }
+      } catch (dbError) {
+        console.error("[Reddit API] Error saving post to database:", dbError);
+        // Ne pas faire échouer la requête si la sauvegarde échoue
+      }
+    }
+
     return NextResponse.json({
       success: true,
       post: result.json.data,
+      postId: redditPostId,
     });
   } catch (error) {
     console.error("Error creating Reddit post:", error);

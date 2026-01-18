@@ -97,12 +97,75 @@ async function getValidAccessToken(userId: string): Promise<string> {
     return tokenData.access_token;
   }
 
-  return connection.access_token;
+    return connection.access_token;
+}
+
+export interface XPostMetrics {
+  impressions: number;
+  likes: number;
+  retweets: number;
+  replies: number;
+  engagement_rate: number;
+}
+
+export async function getXPostMetrics(
+  userId: string,
+  tweetId: string,
+): Promise<XPostMetrics> {
+  const accessToken = await getValidAccessToken(userId);
+
+  // Récupérer les métriques du tweet via l'API v2
+  // Note: L'API v2 nécessite des permissions spéciales pour les métriques publiques
+  // Pour les métriques détaillées, il faut utiliser l'API Enterprise ou Analytics API
+  const response = await fetch(
+    `https://api.twitter.com/2/tweets/${tweetId}?tweet.fields=public_metrics`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(`Failed to get tweet metrics: ${response.status} ${JSON.stringify(errorData)}`);
+  }
+
+  const data = (await response.json()) as {
+    data?: {
+      public_metrics?: {
+        impression_count?: number;
+        like_count?: number;
+        retweet_count?: number;
+        reply_count?: number;
+      };
+    };
+  };
+
+  const metrics = data.data?.public_metrics || {};
+  const impressions = metrics.impression_count || 0;
+  const likes = metrics.like_count || 0;
+  const retweets = metrics.retweet_count || 0;
+  const replies = metrics.reply_count || 0;
+
+  // Calculer le taux d'engagement
+  const totalEngagement = likes + retweets + replies;
+  const engagement_rate = impressions > 0 ? (totalEngagement / impressions) * 100 : 0;
+
+  return {
+    impressions,
+    likes,
+    retweets,
+    replies,
+    engagement_rate,
+  };
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, imageBase64 } = await request.json();
+    const { text, imageBase64, planId } = await request.json();
 
     if (!text) {
       return NextResponse.json({ error: 'Missing text field' }, { status: 400 });
@@ -200,7 +263,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: data }, { status: response.status });
     }
 
-    return NextResponse.json({ success: true, data });
+    // Sauvegarder le post en base de données
+    const tweetId = (data as { data?: { id?: string } }).data?.id;
+    if (tweetId) {
+      try {
+        const { error: insertError } = await supabase
+          .from('posts')
+          .insert({
+            user_id: user.id,
+            provider: 'twitter',
+            provider_post_id: tweetId,
+            content: truncatedText,
+            plan_id: planId || null,
+          });
+
+        if (insertError) {
+          console.error('[X API] Error saving post to database:', insertError);
+          // Ne pas faire échouer la requête si la sauvegarde échoue
+        }
+      } catch (dbError) {
+        console.error('[X API] Error saving post to database:', dbError);
+        // Ne pas faire échouer la requête si la sauvegarde échoue
+      }
+    }
+
+    return NextResponse.json({ success: true, data, postId: tweetId });
   } catch (error) {
     console.error('[X API] Error:', error);
     return NextResponse.json(

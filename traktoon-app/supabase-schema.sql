@@ -93,3 +93,89 @@ CREATE POLICY "Users can update their own GTM plans"
 CREATE POLICY "Users can delete their own GTM plans"
   ON gtm_plans FOR DELETE
   USING (auth.uid() = user_id);
+
+-- Table pour stocker les posts publiés sur les réseaux sociaux
+CREATE TABLE IF NOT EXISTS posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider VARCHAR(50) NOT NULL, -- 'twitter', 'instagram', 'reddit'
+  provider_post_id VARCHAR(255) NOT NULL, -- ID du post sur le réseau social
+  content TEXT, -- Contenu du post (pour référence)
+  media_url TEXT, -- URL de l'image/média si applicable
+  plan_id UUID REFERENCES gtm_plans(id) ON DELETE SET NULL, -- Lien optionnel vers le plan GTM
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(provider, provider_post_id)
+);
+
+-- Index pour améliorer les performances
+CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_posts_provider ON posts(provider);
+CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_posts_plan_id ON posts(plan_id);
+
+-- RLS pour posts
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+
+-- Politique RLS pour posts : les utilisateurs ne peuvent voir/modifier que leurs propres posts
+CREATE POLICY "Users can view their own posts"
+  ON posts FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own posts"
+  ON posts FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own posts"
+  ON posts FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own posts"
+  ON posts FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Table pour stocker les métriques des posts (historique)
+CREATE TABLE IF NOT EXISTS post_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  impressions INTEGER DEFAULT 0,
+  likes INTEGER DEFAULT 0,
+  comments INTEGER DEFAULT 0,
+  shares INTEGER DEFAULT 0,
+  retweets INTEGER DEFAULT 0, -- Pour Twitter/X
+  upvotes INTEGER DEFAULT 0, -- Pour Reddit
+  downvotes INTEGER DEFAULT 0, -- Pour Reddit
+  views INTEGER DEFAULT 0, -- Pour les vidéos
+  engagement_rate DECIMAL(10, 4), -- Taux d'engagement calculé
+  measured_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour améliorer les performances
+CREATE INDEX IF NOT EXISTS idx_post_metrics_post_id ON post_metrics(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_metrics_measured_at ON post_metrics(measured_at DESC);
+
+-- RLS pour post_metrics
+ALTER TABLE post_metrics ENABLE ROW LEVEL SECURITY;
+
+-- Politique RLS pour post_metrics : les utilisateurs ne peuvent voir que les métriques de leurs propres posts
+CREATE POLICY "Users can view metrics of their own posts"
+  ON post_metrics FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = post_metrics.post_id
+      AND posts.user_id = auth.uid()
+    )
+  );
+
+-- Politique RLS pour post_metrics : les utilisateurs peuvent insérer des métriques pour leurs propres posts
+CREATE POLICY "Users can insert metrics for their own posts"
+  ON post_metrics FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = post_metrics.post_id
+      AND posts.user_id = auth.uid()
+    )
+  );
