@@ -55,7 +55,7 @@ export const QuestionForm = ({ questions, onSubmit }: Readonly<QuestionFormProps
               {question.required && <span className="text-red-400 ml-1">*</span>}
             </label>
             
-            {hasPropositions && (
+            {hasPropositions && question.propositions && (
               <div className="flex flex-wrap gap-2">
                 {question.propositions.map((proposition, index) => {
                   const isSelected = currentAnswer === proposition;

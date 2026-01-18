@@ -167,7 +167,7 @@ export const ConnectionSocial = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {SOCIAL_PROVIDERS.map((provider) => {
-          const connected = isConnected(provider);
+          const connected = isConnected(provider.id);
           const username = getConnectionUsername(provider.id);
           const isConnecting = connecting === provider.id;
 
