@@ -53,12 +53,30 @@ const detailedPostSchema = z.object({
   hashtags: z.array(z.string()).optional().describe("Hashtags optionnels à inclure dans le post"),
 });
 
+const detailedEmailSchema = z.object({
+  scheduledDate: z.string().describe("Date et heure de l'email au format ISO 8601 (ex: 2024-01-15T10:00:00Z)"),
+  subject: z.string().describe("Sujet de l'email"),
+  bodyHtml: z.string().describe("Corps de l'email en HTML"),
+  bodyText: z.string().optional().describe("Corps de l'email en texte brut (optionnel)"),
+});
+
 export const detailedPlanSchema = z.object({
-  accountSetup: accountSetupSchema.describe("Informations pour créer le compte sur le réseau social"),
+  accountSetup: accountSetupSchema.describe("Informations pour créer le compte sur la plateforme"),
   posts: z
     .array(detailedPostSchema)
     .min(1)
-    .describe("Séquence de posts à publier avec dates, descriptions d'images et textes"),
-});
+    .optional()
+    .describe("Séquence de posts à publier avec dates, descriptions d'images et textes (pour réseaux sociaux)"),
+  emails: z
+    .array(detailedEmailSchema)
+    .min(1)
+    .optional()
+    .describe("Séquence d'emails à envoyer avec dates, sujets et corps (pour canal Email)"),
+}).refine(
+  (data) => (data.posts !== undefined && data.posts.length > 0) || (data.emails !== undefined && data.emails.length > 0),
+  {
+    message: "Le plan doit contenir soit des posts, soit des emails",
+  }
+);
 
 export type DetailedPlanInput = z.infer<typeof detailedPlanSchema>;

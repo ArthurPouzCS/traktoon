@@ -81,3 +81,26 @@ export function useCountdown(targetDate: string): string {
 
   return countdown;
 }
+
+/**
+ * Parse les emails d'un texte multi-ligne
+ * Supporte les séparateurs : virgule, point-virgule, retour à la ligne
+ * @param text Texte contenant les emails (séparés par virgule, point-virgule ou retour à la ligne)
+ * @returns Tableau d'emails parsés et nettoyés
+ */
+export function parseEmails(text: string): string[] {
+  if (!text || text.trim().length === 0) {
+    return [];
+  }
+
+  // Remplacer les retours à la ligne par des virgules pour normaliser
+  const normalized = text.replace(/\n/g, ',');
+  
+  // Split par virgule ou point-virgule
+  const emails = normalized
+    .split(/[,;]/)
+    .map((email) => email.trim())
+    .filter((email) => email.length > 0);
+
+  return emails;
+}

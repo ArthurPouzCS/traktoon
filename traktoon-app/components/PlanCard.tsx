@@ -50,6 +50,10 @@ const isSocialMediaChannel = (channel: string): boolean => {
   return channel === "X" || channel === "Instagram" || channel === "TikTok" || channel === "LinkedIn";
 };
 
+const canHaveDetailedPlan = (channel: string): boolean => {
+  return isSocialMediaChannel(channel) || channel === "Email";
+};
+
 export const PlanCard = ({ channelPlan, index, planId, savedDetailedPlan }: Readonly<PlanCardProps>) => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [detailedPlan, setDetailedPlan] = useState<DetailedPlan | null>(savedDetailedPlan || null);
@@ -64,6 +68,7 @@ export const PlanCard = ({ channelPlan, index, planId, savedDetailedPlan }: Read
 
   const contentBullets = formatContentAsBullets(channelPlan.content);
   const isSocialMedia = isSocialMediaChannel(channelPlan.channel);
+  const canPrecise = canHaveDetailedPlan(channelPlan.channel);
 
   // Mettre à jour le plan détaillé quand savedDetailedPlan change
   useEffect(() => {
@@ -163,7 +168,7 @@ export const PlanCard = ({ channelPlan, index, planId, savedDetailedPlan }: Read
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {isSocialMedia && (
+                {canPrecise && (
                   <button
                     onClick={handlePrecise}
                     disabled={isLoading}
