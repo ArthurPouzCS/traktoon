@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { storeCodeVerifier } from '@/lib/x/pkce-store';
 
@@ -6,7 +7,6 @@ import { storeCodeVerifier } from '@/lib/x/pkce-store';
 // Step 1: Generate authorization URL
 
 const CLIENT_ID = process.env.X_CLIENT_ID!;
-const REDIRECT_URI = process.env.X_REDIRECT_URI || 'http://localhost:3000/api/x/callback';
 const SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access'];
 
 // Generate PKCE code verifier and challenge

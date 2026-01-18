@@ -7,8 +7,8 @@ import { storeTokens } from '@/lib/x/token-manager';
 
 const CLIENT_ID = process.env.X_CLIENT_ID!;
 const CLIENT_SECRET = process.env.X_CLIENT_SECRET!;
-const REDIRECT_URI = process.env.X_REDIRECT_URI || 'http://localhost:3000/api/x/callback';
 const TOKEN_URL = 'https://api.twitter.com/2/oauth2/token';
+const SCOPES = ['tweet.read', 'tweet.write', 'users.read', 'offline.access'];
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     error 
   });
 
+  // Vérifier s'il y a une erreur de X
   if (error) {
     return htmlResponse(`
       <h1>❌ Authorization Error</h1>
