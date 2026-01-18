@@ -188,13 +188,16 @@ async function executeEmailPlan(plan: ChannelPlan & {
   let failed = 0;
   const errors: string[] = [];
   
+  // Sanitize tag (only ASCII letters, numbers, underscores, dashes)
+  const sanitizeTag = (tag: string) => tag.replace(/[^a-zA-Z0-9_-]/g, '_');
+  
   for (const recipient of recipients) {
     const result = await sendEmail({
       to: recipient,
       subject,
       html,
       text,
-      tags: plan.sequence ? [plan.sequence] : undefined,
+      tags: plan.sequence ? [sanitizeTag(plan.sequence)] : undefined,
       campaign: plan.sequence,
     });
     
