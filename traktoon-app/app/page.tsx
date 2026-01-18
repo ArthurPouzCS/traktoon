@@ -19,6 +19,8 @@ export default function Home() {
   const [questions, setQuestions] = useState<QuestionConfig[]>([]);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [plan, setPlan] = useState<GoToMarketPlan | null>(null);
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [detailedPlans, setDetailedPlans] = useState<Record<string, import("@/types/detailed-plan").DetailedPlan> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
@@ -117,6 +119,23 @@ export default function Home() {
 
       const data = await response.json();
       setPlan(data.plan);
+      setPlanId(data.planId || null);
+
+      // Charger les plans détaillés si planId existe
+      if (data.planId) {
+        try {
+          const plansResponse = await fetch(`/api/plans?id=${data.planId}`);
+          if (plansResponse.ok) {
+            const plansData = await plansResponse.json();
+            if (plansData.plan?.detailed_plans) {
+              setDetailedPlans(plansData.plan.detailed_plans);
+            }
+          }
+        } catch (err) {
+          console.error("Erreur lors du chargement des plans détaillés:", err);
+          // On continue même si le chargement échoue
+        }
+      }
 
       const assistantMessage: ConversationMessage = {
         role: "assistant",
@@ -138,6 +157,8 @@ export default function Home() {
     setQuestions([]);
     setMessages([]);
     setPlan(null);
+    setPlanId(null);
+    setDetailedPlans(null);
     setError(null);
   };
 
@@ -185,6 +206,12 @@ export default function Home() {
         <header className="w-full px-6 py-6 flex items-center justify-between border-b border-zinc-800">
           <div className="text-xl ml-2 font-semibold text-white">Traktoon</div>
           <div className="flex items-center gap-3">
+            <a
+              href="/history"
+              className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+            >
+              Historique
+            </a>
             <button
               onClick={handleReset}
               className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
@@ -202,7 +229,7 @@ export default function Home() {
 
         {/* Plan Display - Full Width */}
         <main className="flex-1 w-full px-6 py-12">
-          <PlanDisplay plan={plan} />
+          <PlanDisplay plan={plan} planId={planId} detailedPlans={detailedPlans} />
         </main>
       </div>
     );
@@ -214,6 +241,12 @@ export default function Home() {
       <header className="w-[98%] px-6 py-6 flex items-center justify-between">
         <div className="text-xl ml-2 font-semibold text-white">Traktoon</div>
         <div className="flex items-center gap-3">
+          <a
+            href="/history"
+            className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            Historique
+          </a>
           <a
             href="/connections"
             className="px-4 py-2 bg-zinc-900 rounded-lg text-sm font-medium text-white hover:bg-zinc-800 transition-colors"

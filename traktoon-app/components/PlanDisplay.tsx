@@ -2,12 +2,15 @@
 
 import { PlanCard } from "./PlanCard";
 import type { GoToMarketPlan } from "@/types/plan";
+import type { DetailedPlan } from "@/types/detailed-plan";
 
 export interface PlanDisplayProps {
   plan: GoToMarketPlan;
+  planId?: string | null;
+  detailedPlans?: Record<string, DetailedPlan> | null;
 }
 
-export const PlanDisplay = ({ plan }: Readonly<PlanDisplayProps>) => {
+export const PlanDisplay = ({ plan, planId, detailedPlans }: Readonly<PlanDisplayProps>) => {
   return (
     <div className="w-full max-w-[1400px] mx-auto space-y-12">
       {/* Header */}
@@ -23,7 +26,13 @@ export const PlanDisplay = ({ plan }: Readonly<PlanDisplayProps>) => {
       {/* Cards Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {plan.channels.map((channelPlan, index) => (
-          <PlanCard key={index} channelPlan={channelPlan} index={index + 1} />
+          <PlanCard
+            key={index}
+            channelPlan={channelPlan}
+            index={index + 1}
+            planId={planId}
+            savedDetailedPlan={detailedPlans?.[channelPlan.channel] || null}
+          />
         ))}
       </div>
     </div>

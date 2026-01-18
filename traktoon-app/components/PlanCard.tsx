@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ChannelPlan, PlanStatus } from "@/types/plan";
 import type { DetailedPlan } from "@/types/detailed-plan";
 import { PlanDetailView } from "./PlanDetailView";
@@ -8,6 +8,8 @@ import { PlanDetailView } from "./PlanDetailView";
 export interface PlanCardProps {
   channelPlan: ChannelPlan;
   index: number;
+  planId?: string | null;
+  savedDetailedPlan?: DetailedPlan | null;
 }
 
 const statusColors: Record<PlanStatus, { bg: string; text: string; border: string }> = {
@@ -48,9 +50,9 @@ const isSocialMediaChannel = (channel: string): boolean => {
   return channel === "X" || channel === "Instagram" || channel === "TikTok" || channel === "LinkedIn";
 };
 
-export const PlanCard = ({ channelPlan, index }: Readonly<PlanCardProps>) => {
+export const PlanCard = ({ channelPlan, index, planId, savedDetailedPlan }: Readonly<PlanCardProps>) => {
   const [isFlipped, setIsFlipped] = useState(false);
-  const [detailedPlan, setDetailedPlan] = useState<DetailedPlan | null>(null);
+  const [detailedPlan, setDetailedPlan] = useState<DetailedPlan | null>(savedDetailedPlan || null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,14 +65,28 @@ export const PlanCard = ({ channelPlan, index }: Readonly<PlanCardProps>) => {
   const contentBullets = formatContentAsBullets(channelPlan.content);
   const isSocialMedia = isSocialMediaChannel(channelPlan.channel);
 
+  // Mettre à jour le plan détaillé quand savedDetailedPlan change
+  useEffect(() => {
+    if (savedDetailedPlan) {
+      setDetailedPlan(savedDetailedPlan);
+    }
+  }, [savedDetailedPlan]);
+
   const handlePrecise = async () => {
-    // Si le plan détaillé existe déjà, on fait juste le flip
+    // Si un plan détaillé sauvegardé existe, l'utiliser directement
+    if (savedDetailedPlan) {
+      setDetailedPlan(savedDetailedPlan);
+      setIsFlipped(true);
+      return;
+    }
+
+    // Si le plan détaillé existe déjà dans le state (généré dans cette session), on fait juste le flip
     if (detailedPlan) {
       setIsFlipped(true);
       return;
     }
 
-    // Sinon, on génère le plan détaillé
+    // Sinon, on génère le plan détaillé via le LLM
     setIsLoading(true);
     setError(null);
 
@@ -82,6 +98,7 @@ export const PlanCard = ({ channelPlan, index }: Readonly<PlanCardProps>) => {
         },
         body: JSON.stringify({
           channelPlan,
+          planId: planId || undefined,
         }),
       });
 
