@@ -39,3 +39,26 @@ export const questionsSchema = z.object({
 });
 
 export type QuestionsInput = z.infer<typeof questionsSchema>;
+
+const accountSetupSchema = z.object({
+  registrationUrl: z.string().url().describe("URL pour créer/inscrire le compte sur la plateforme"),
+  accountName: z.string().describe("Nom suggéré pour le compte"),
+  steps: z.array(z.string()).optional().describe("Étapes optionnelles pour créer le compte"),
+});
+
+const detailedPostSchema = z.object({
+  scheduledDate: z.string().describe("Date et heure du post au format ISO 8601 (ex: 2024-01-15T10:00:00Z)"),
+  imageDescription: z.string().describe("Description détaillée de l'image à créer/générer pour le post"),
+  postDescription: z.string().describe("Texte/description à mettre dans le post (copiable)"),
+  hashtags: z.array(z.string()).optional().describe("Hashtags optionnels à inclure dans le post"),
+});
+
+export const detailedPlanSchema = z.object({
+  accountSetup: accountSetupSchema.describe("Informations pour créer le compte sur le réseau social"),
+  posts: z
+    .array(detailedPostSchema)
+    .min(1)
+    .describe("Séquence de posts à publier avec dates, descriptions d'images et textes"),
+});
+
+export type DetailedPlanInput = z.infer<typeof detailedPlanSchema>;
