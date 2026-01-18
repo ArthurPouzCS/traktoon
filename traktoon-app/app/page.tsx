@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { QuestionForm } from "@/components/QuestionForm";
 import { ConversationHistory } from "@/components/ConversationHistory";
@@ -23,39 +23,74 @@ export default function Home() {
   const [detailedPlans, setDetailedPlans] = useState<Record<string, import("@/types/detailed-plan").DetailedPlan> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
   useEffect(() => {
-    // Vérifier si l'utilisateur est connecté
-    const checkAuth = async () => {
+    // Vérifier si l'utilisateur est connecté et récupérer le prompt sauvegardé
+    const checkAuthAndRestorePrompt = async () => {
       const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
       
-      if (!session) {
-        router.push("/login");
-        return;
+      // Vérifier s'il y a un prompt sauvegardé dans localStorage
+      const savedPrompt = localStorage.getItem("traktoon_pending_prompt");
+      
+      if (session && savedPrompt) {
+        // L'utilisateur est connecté et il y a un prompt en attente
+        // Continuer automatiquement avec le prompt sauvegardé
+        localStorage.removeItem("traktoon_pending_prompt");
+        setPendingPrompt(savedPrompt);
       }
       
       setIsCheckingAuth(false);
     };
     
-    checkAuth();
+    checkAuthAndRestorePrompt();
   }, [router]);
 
   const normalizeUrlOnlyInput = (value: string): string | null => {
     const trimmed = value.trim();
     if (!trimmed || /\s/.test(trimmed)) return null;
+    
+    // Vérifier qu'il y a au moins un point dans le hostname (domaine.com)
+    // ou que ça ressemble vraiment à une URL avec un point ou un slash
+    if (!trimmed.includes(".") && !trimmed.includes("/")) return null;
+    
     const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
     try {
       const url = new URL(candidate);
-      return url.hostname ? url.toString() : null;
+      // Vérifier que le hostname contient au moins un point (domaine valide)
+      // ou que c'est localhost/local
+      if (!url.hostname || (!url.hostname.includes(".") && !url.hostname.match(/^(localhost|local|127\.0\.0\.1)$/i))) {
+        return null;
+      }
+      // Vérifier que le hostname fait au moins 4 caractères pour éviter les faux positifs
+      if (url.hostname.length < 4) return null;
+      
+      return url.toString();
     } catch {
       return null;
     }
   };
 
-  const handlePromptSubmit = async (userPrompt: string) => {
+  // Détecter si le prompt actuel contient une URL
+  const detectedUrl = useMemo(() => normalizeUrlOnlyInput(prompt), [prompt]);
+
+  const handlePromptSubmit = useCallback(async (userPrompt: string) => {
+    // Vérifier l'authentification avant de continuer
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      // Sauvegarder le prompt dans localStorage et rediriger vers login
+      localStorage.setItem("traktoon_pending_prompt", userPrompt);
+      router.push("/login");
+      return;
+    }
+
     setError(null);
     setState("loading");
 
@@ -118,7 +153,19 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
       setState("prompt");
     }
-  };
+  }, [router]);
+
+  // Traiter le prompt en attente après vérification de l'authentification
+  useEffect(() => {
+    if (!isCheckingAuth && pendingPrompt) {
+      const processPrompt = async () => {
+        const promptToProcess = pendingPrompt;
+        setPendingPrompt(null);
+        await handlePromptSubmit(promptToProcess);
+      };
+      processPrompt();
+    }
+  }, [isCheckingAuth, pendingPrompt, handlePromptSubmit]);
 
   const handleQuestionsSubmit = async (answers: Record<string, string>) => {
     setError(null);
@@ -343,14 +390,40 @@ export default function Home() {
           {/* Input Form */}
           {state === "prompt" && (
             <form onSubmit={handleInputSubmit} className="w-full space-y-3 mt-4">
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your product idea..."
-                className="w-full h-14 px-4 bg-zinc-900 border border-zinc-800 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-white focus:border-transparent text-base text-center"
-                required
-              />
+              <div className="w-full space-y-2">
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Describe your product idea..."
+                  className={`w-full h-14 px-4 bg-zinc-900 border rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:border-transparent text-base text-center transition-colors ${
+                    detectedUrl
+                      ? "border-blue-500 focus:ring-blue-500"
+                      : "border-zinc-800 focus:ring-white"
+                  }`}
+                  required
+                />
+                {detectedUrl && (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/30 border border-blue-800/50 rounded-lg">
+                    <svg
+                      className="w-5 h-5 text-blue-400 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <p className="text-sm text-blue-300">
+                      Nous allons inspecter ce site web pour analyser son contenu, son design et ses fonctionnalités.
+                    </p>
+                  </div>
+                )}
+              </div>
               <button
                 type="submit"
                 className="mt-2 w-full flex items-center justify-center gap-2 px-2 py-1 bg-zinc-900 rounded-lg text-white font-medium hover:bg-zinc-800 transition-colors"
