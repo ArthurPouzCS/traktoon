@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { storeTokens } from '@/lib/x/token-manager';
 
 // OAuth 2.0 - Step 2: Exchange code for tokens
 
@@ -37,25 +38,24 @@ export async function POST(request: Request) {
 
   const data = await response.json();
 
-  console.log('[X OAuth] Token response:', JSON.stringify(data, null, 2));
+  console.log('[X OAuth] Token response status:', response.status);
 
   if (!response.ok) {
+    console.error('[X OAuth] Token error:', data);
     return NextResponse.json({ error: data }, { status: response.status });
   }
 
-  // SUCCESS! Save these tokens
-  console.log('\n========================================');
-  console.log('✅ TOKENS RECEIVED! Add to your .env:');
-  console.log(`X_ACCESS_TOKEN=${data.access_token}`);
-  console.log(`X_REFRESH_TOKEN=${data.refresh_token}`);
-  console.log('========================================\n');
+  // Store tokens in memory for auto-refresh
+  storeTokens(data.access_token, data.refresh_token, data.expires_in);
+
+  console.log('[X OAuth] Tokens stored successfully!');
+  console.log('[X OAuth] Access token:', data.access_token.substring(0, 20) + '...');
 
   return NextResponse.json({
     success: true,
-    message: 'Tokens received! Add them to your .env file',
+    message: 'Tokens received and stored! You can now post tweets.',
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     expires_in: data.expires_in,
   });
 }
-

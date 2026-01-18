@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { storeCodeVerifier } from '@/lib/x/pkce-store';
 
 // OAuth 2.0 with PKCE
 // Step 1: Generate authorization URL
@@ -22,6 +23,9 @@ export async function GET() {
   const { codeVerifier, codeChallenge } = generatePKCE();
   const state = crypto.randomBytes(16).toString('hex');
 
+  // Store code_verifier for later retrieval in callback
+  storeCodeVerifier(state, codeVerifier);
+
   const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('client_id', CLIENT_ID);
@@ -31,22 +35,12 @@ export async function GET() {
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
 
-  // IMPORTANT: Save this code_verifier - you'll need it to exchange the code!
-  console.log('\n========================================');
-  console.log('🔐 CODE VERIFIER (save this!):');
-  console.log(codeVerifier);
-  console.log('========================================\n');
+  console.log('[Auth] Generated auth URL with state:', state.substring(0, 8) + '...');
 
   return NextResponse.json({
     message: 'Open this URL in your browser to authorize:',
     authUrl: authUrl.toString(),
-    codeVerifier: codeVerifier,
-    instructions: [
-      '1. Open the authUrl in your browser',
-      '2. Authorize the app',
-      '3. Copy the "code" from the URL bar (after ?code=...)',
-      '4. Call POST /api/x/token with { code, codeVerifier }'
-    ]
+    codeVerifier: codeVerifier, // Still return for debugging/manual use
+    state: state,
   });
 }
-

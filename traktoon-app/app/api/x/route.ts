@@ -1,43 +1,52 @@
 import { NextResponse } from 'next/server';
+import { postTweet } from '@/lib/x/client';
+import { getTokenInfo } from '@/lib/x/token-manager';
 
-const TWEET_ENDPOINT = 'https://api.twitter.com/2/tweets';
-
+/**
+ * POST /api/x
+ * Post a tweet to X (Twitter)
+ * 
+ * Body: { text: string, mediaUrl?: string }
+ */
 export async function POST(request: Request) {
-  const { text } = await request.json();
+  try {
+    const { text, mediaUrl } = await request.json();
 
-  if (!text) {
-    return NextResponse.json({ error: 'Missing text field' }, { status: 400 });
-  }
+    if (!text) {
+      return NextResponse.json({ error: 'Missing text field' }, { status: 400 });
+    }
 
-  const accessToken = process.env.X_ACCESS_TOKEN;
+    const result = await postTweet({ text, mediaUrl });
 
-  if (!accessToken) {
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        tweetId: result.tweetId,
+        tweetUrl: result.tweetUrl,
+      },
+    });
+  } catch (error) {
+    console.error('[X API] Error:', error);
     return NextResponse.json(
-      { error: 'No access token configured. Please authorize first.' },
-      { status: 401 }
+      { error: error instanceof Error ? error.message : 'Failed to post tweet' },
+      { status: 500 }
     );
   }
+}
 
-  console.log('[X API] Posting tweet with OAuth 2.0 Bearer token...');
-  console.log('[X API] Tweet text:', text);
-
-  const response = await fetch(TWEET_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ text }),
+/**
+ * GET /api/x
+ * Get current token status
+ */
+export async function GET() {
+  const tokenInfo = getTokenInfo();
+  
+  return NextResponse.json({
+    status: tokenInfo ? 'configured' : 'not_configured',
+    tokenInfo,
   });
-
-  const data = await response.json();
-
-  console.log('[X API] Status:', response.status);
-  console.log('[X API] Response:', JSON.stringify(data, null, 2));
-
-  if (!response.ok) {
-    return NextResponse.json({ error: data }, { status: response.status });
-  }
-
-  return NextResponse.json({ success: true, data });
 }
