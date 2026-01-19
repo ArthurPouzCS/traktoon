@@ -104,7 +104,8 @@ export const ConnectionSocial = () => {
       } else if (provider === "instagram") {
         route = "/api/auth/instagram/initiate";
       } else {
-        route = "/api/x/auth";
+        // Pour X/Twitter, utiliser directement le flux OAuth1 multi-utilisateur
+        route = "/api/x/oauth1-initiate";
       }
       window.location.href = route;
     } catch (error) {
@@ -135,7 +136,12 @@ export const ConnectionSocial = () => {
     const success = searchParams.get("success");
     const error = searchParams.get("error");
 
-    if (success === "reddit_connected" || success === "instagram_connected" || success === "x_connected") {
+    if (
+      success === "reddit_connected" ||
+      success === "instagram_connected" ||
+      success === "x_connected" ||
+      success === "x_oauth1_connected"
+    ) {
       loadConnections();
       // Nettoyer l'URL
       window.history.replaceState({}, "", window.location.pathname);

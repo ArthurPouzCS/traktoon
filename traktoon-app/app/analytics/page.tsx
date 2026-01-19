@@ -106,7 +106,23 @@ export default function AnalyticsPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Erreur lors de la récupération des métriques");
+        
+        // Si le post a été supprimé (404 avec deleted: true), retirer le post de la liste
+        if (response.status === 404 && errorData.deleted) {
+          setPosts((prev) => prev.filter((post) => post.id !== postId));
+          // Ne pas afficher d'erreur, juste retirer le post silencieusement
+          return;
+        }
+        
+        // Pour les erreurs d'authentification (401), ne pas afficher d'erreur rouge
+        // car ce n'est pas une erreur critique pour l'utilisateur
+        if (response.status === 401 || errorData.authError) {
+          // Ne pas afficher d'erreur, juste retourner silencieusement
+          return;
+        }
+        
+        // Pour les autres erreurs, afficher un message
+        throw new Error(errorData.error || errorData.message || "Erreur lors de la récupération des métriques");
       }
 
       const data = await response.json();
@@ -120,7 +136,11 @@ export default function AnalyticsPage() {
         )
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de la récupération des métriques");
+      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la récupération des métriques";
+      // Afficher l'erreur seulement si ce n'est pas une erreur d'authentification
+      if (!errorMessage.includes("401") && !errorMessage.includes("Unauthorized") && !errorMessage.includes("Authentication failed")) {
+        setError(errorMessage);
+      }
     } finally {
       setRefreshingIds((prev) => {
         const newSet = new Set(prev);

@@ -100,10 +100,80 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         });
       } catch (error) {
         console.error("Error fetching metrics:", error);
+        
+        // Vérifier si l'erreur indique que le post n'existe plus
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        const lowerErrorMessage = errorMessage.toLowerCase();
+        
+        // Extraire le code de statut HTTP du message d'erreur
+        // Formats possibles:
+        // - "Post not found: 404 ..." (nouveau format amélioré)
+        // - "Failed to get tweet metrics: 404 ..."
+        // - "Failed to get post insights: 404 ..."
+        // - "Failed to get Reddit post: 404 ..."
+        // - "Post not found" (Reddit spécifique)
+        const statusMatch = errorMessage.match(/:\s*(\d{3})\s*/);
+        const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : null;
+        
+        // Vérifier si le message indique que le post n'existe plus
+        // Même si le code est 401, si le message dit "not found", c'est que le post n'existe plus
+        const isPostNotFoundMessage = 
+          lowerErrorMessage.includes("post not found") ||
+          lowerErrorMessage.includes("not found:") ||
+          lowerErrorMessage.includes("does not exist") ||
+          lowerErrorMessage.includes("could not be found") ||
+          lowerErrorMessage.includes("no data returned") ||
+          lowerErrorMessage.trim() === "post not found";
+        
+        // Vérifier si c'est une erreur 404 ou un message explicite "Post not found"
+        // On supprime aussi si le message indique "not found" même avec un autre code (401 peut masquer un 404)
+        if (statusCode === 404 || isPostNotFoundMessage) {
+          // Supprimer le post de la base de données car il n'existe plus
+          const { error: deleteError } = await supabase
+            .from("posts")
+            .delete()
+            .eq("id", post.id)
+            .eq("user_id", user.id);
+
+          if (deleteError) {
+            console.error("Error deleting post:", deleteError);
+            return NextResponse.json(
+              {
+                error: "Post not found and failed to delete from database",
+                message: deleteError.message,
+              },
+              { status: 500 },
+            );
+          }
+
+          return NextResponse.json(
+            {
+              error: "Post not found",
+              message: "The post no longer exists and has been removed from the database",
+              deleted: true,
+            },
+            { status: 404 },
+          );
+        }
+
+        // Gérer les erreurs d'authentification (401) séparément
+        // Seulement si ce n'est PAS un message "not found"
+        if (statusCode === 401 && !isPostNotFoundMessage) {
+          return NextResponse.json(
+            {
+              error: "Authentication failed",
+              message: "Unable to authenticate with the social media platform. Please reconnect your account.",
+              authError: true,
+            },
+            { status: 401 },
+          );
+        }
+
+        // Pour les autres erreurs, retourner un statut 500
         return NextResponse.json(
           {
             error: "Failed to fetch metrics",
-            message: error instanceof Error ? error.message : "Unknown error",
+            message: errorMessage,
           },
           { status: 500 },
         );

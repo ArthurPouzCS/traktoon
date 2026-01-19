@@ -6,8 +6,11 @@ CREATE TABLE IF NOT EXISTS social_connections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   provider VARCHAR(50) NOT NULL, -- 'reddit', 'twitter', etc.
-  access_token TEXT NOT NULL,
+  access_token TEXT,
   refresh_token TEXT,
+  -- OAuth1 tokens optionnels pour certains providers (par ex. X/Twitter)
+  oauth1_access_token TEXT,
+  oauth1_access_token_secret TEXT,
   expires_at TIMESTAMPTZ,
   scope TEXT,
   provider_user_id VARCHAR(255), -- ID utilisateur sur le réseau social
