@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import type { DetailedPlan, DetailedPost } from "@/types/detailed-plan";
-import { useCountdown, copyToClipboard } from "@/lib/utils/detailed-plan";
 import type { ChannelPlan } from "@/types/plan";
+import { LandingPageDetailView } from "./LandingPageDetailView";
+import { useCountdown, copyToClipboard } from "@/lib/utils/detailed-plan";
 import { EmailDetailView } from "./EmailDetailView";
 
 interface PostCountdownProps {
@@ -18,6 +19,7 @@ const PostCountdown = ({ scheduledDate }: Readonly<PostCountdownProps>) => {
 export interface PlanDetailViewProps {
   detailedPlan: DetailedPlan;
   channelPlan: ChannelPlan;
+  planId?: string | null;
   onFlipBack: () => void;
 }
 
@@ -31,10 +33,22 @@ const channelColors: Record<string, { accent: string; light: string }> = {
   LandingPage: { accent: "text-orange-400", light: "bg-orange-500/10" },
 };
 
-export const PlanDetailView = ({ detailedPlan, channelPlan, onFlipBack }: Readonly<PlanDetailViewProps>) => {
+export const PlanDetailView = ({ detailedPlan, channelPlan, planId, onFlipBack }: Readonly<PlanDetailViewProps>) => {
   // Si c'est le canal Email, utiliser EmailDetailView
   if (channelPlan.channel === "Email") {
     return <EmailDetailView detailedPlan={detailedPlan} channelPlan={channelPlan} onFlipBack={onFlipBack} />;
+  }
+
+  // Si c'est le canal LandingPage, utiliser LandingPageDetailView
+  if (channelPlan.channel === "LandingPage") {
+    return (
+      <LandingPageDetailView
+        detailedPlan={detailedPlan}
+        channelPlan={channelPlan}
+        planId={planId}
+        onFlipBack={onFlipBack}
+      />
+    );
   }
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [generatedImages, setGeneratedImages] = useState<Record<number, string>>({});

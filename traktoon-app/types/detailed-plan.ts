@@ -22,4 +22,7 @@ export interface DetailedPlan {
   accountSetup: AccountSetup;
   posts?: DetailedPost[]; // Pour réseaux sociaux
   emails?: DetailedEmail[]; // Pour canal Email (mutuellement exclusif)
+  // Champs optionnels spécifiques au canal LandingPage
+  vercelDeploymentUrl?: string;
+  vercelProjectName?: string;
 }

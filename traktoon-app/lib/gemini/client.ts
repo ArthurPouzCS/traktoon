@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleGenAI } from "@google/genai";
-import { goToMarketPlanSchema, questionsSchema, detailedPlanSchema } from "./schema";
+import { goToMarketPlanSchema, questionsSchema, detailedPlanSchema, landingPageSiteSchema } from "./schema";
 import type { GoToMarketPlan, ChannelPlan } from "@/types/plan";
 import type { QuestionConfig } from "@/types/conversation";
 import type { DetailedPlan } from "@/types/detailed-plan";
@@ -473,6 +473,105 @@ ${trimmedPayload}
           continue;
         }
         throw new Error(`Erreur lors de l'analyse du site: ${error.message}`);
+      }
+      lastError = error instanceof Error ? error : new Error("Erreur inconnue");
+      continue;
+    }
+  }
+
+  throw new Error(
+    `Aucun modèle disponible. Dernière erreur: ${lastError?.message || "Modèle non trouvé"}`,
+  );
+}
+
+interface LandingPageSiteOutput {
+  html: string;
+  css: string;
+}
+
+export async function generateLandingPageSite(
+  detailedPlan: DetailedPlan,
+): Promise<LandingPageSiteOutput> {
+  let lastError: Error | null = null;
+
+  const serializedPlan = JSON.stringify(detailedPlan, null, 2);
+  const trimmedPlan =
+    serializedPlan.length > 12000 ? `${serializedPlan.slice(0, 12000)}...` : serializedPlan;
+
+  for (const modelName of MODEL_NAMES) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+
+      const prompt = `
+Tu es un expert en UX/UI et en conversion. À partir du plan détaillé suivant d'une landing page (sections, bénéfices, CTAs, preuves sociales, etc.), tu dois générer le code d'un site vitrine moderne.
+
+Le plan détaillé est fourni sous forme de JSON (DetailedPlan) où:
+- "accountSetup" décrit l'outil ou la plateforme
+- "posts" représente les SECTIONS de la landing (hero, bénéfices, preuve sociale, offre/pricing, FAQ, CTA final, etc.)
+
+OBJECTIF:
+Génère une landing page complète avec:
+- Un design moderne, responsive (mobile-first), lisible
+- Une typographie sobre (par exemple system font stack ou sans-serif moderne)
+- Une hiérarchie claire des titres et CTA
+- Des blocs bien espacés, avec un bon contraste
+
+CONTRAINTES TECHNIQUES:
+- Tu dois répondre UNIQUEMENT avec un JSON valide respectant exactement ce schéma:
+{
+  "html": "<!DOCTYPE html>...contenu complet de index.html...",
+  "css": "/* contenu complet de styles.css */"
+}
+- Le HTML doit contenir:
+  - <!DOCTYPE html>
+  - <html>, <head>, <body>
+  - Un <title> pertinent
+  - Un <link rel="stylesheet" href="/styles.css"> dans le <head>
+- Le CSS doit être autonome (pas de frameworks externes) et définir le style complet de la page.
+
+UTILISATION DU PLAN:
+- Utilise chaque entrée de "posts" comme une section de la page, en t'inspirant de "postDescription" pour le texte
+  et de "imageDescription" pour la tonalité visuelle (fond, illustrations, icônes, etc.).
+- Respecte la logique d'ordre des sections (tu peux t'aider de "scheduledDate" comme ordre technique).
+
+IMPORTANT:
+- Réponds UNIQUEMENT avec le JSON (pas de texte avant/après, pas de markdown, pas de code blocks).
+- Le JSON doit être valide et passer le schéma: { "html": string, "css": string }.
+
+Plan détaillé (JSON):
+${trimmedPlan}
+`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+
+      let jsonText = text.trim();
+      if (jsonText.startsWith("```json")) {
+        jsonText = jsonText.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+      } else if (jsonText.startsWith("```")) {
+        jsonText = jsonText.replace(/^```\s*/, "").replace(/\s*```$/, "");
+      }
+
+      const parsed = JSON.parse(jsonText);
+      const validated = landingPageSiteSchema.parse(parsed);
+
+      return {
+        html: validated.html,
+        css: validated.css,
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        if (
+          errorMessage.includes("not found") ||
+          errorMessage.includes("not supported") ||
+          errorMessage.includes("404")
+        ) {
+          lastError = error;
+          continue;
+        }
+        throw new Error(`Erreur lors de la génération du site de landing page: ${error.message}`);
       }
       lastError = error instanceof Error ? error : new Error("Erreur inconnue");
       continue;

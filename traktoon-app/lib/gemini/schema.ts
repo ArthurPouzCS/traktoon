@@ -80,3 +80,10 @@ export const detailedPlanSchema = z.object({
 );
 
 export type DetailedPlanInput = z.infer<typeof detailedPlanSchema>;
+
+export const landingPageSiteSchema = z.object({
+  html: z.string().describe("Contenu complet du fichier index.html, incluant <html>, <head> et <body>"),
+  css: z.string().describe("Contenu complet du fichier styles.css pour la landing page"),
+});
+
+export type LandingPageSiteInput = z.infer<typeof landingPageSiteSchema>;

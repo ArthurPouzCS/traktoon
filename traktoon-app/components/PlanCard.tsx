@@ -51,7 +51,7 @@ const isSocialMediaChannel = (channel: string): boolean => {
 };
 
 const canHaveDetailedPlan = (channel: string): boolean => {
-  return isSocialMediaChannel(channel) || channel === "Email";
+  return isSocialMediaChannel(channel) || channel === "Email" || channel === "LandingPage";
 };
 
 export const PlanCard = ({ channelPlan, index, planId, savedDetailedPlan }: Readonly<PlanCardProps>) => {
@@ -288,6 +288,7 @@ export const PlanCard = ({ channelPlan, index, planId, savedDetailedPlan }: Read
             <PlanDetailView
               detailedPlan={detailedPlan}
               channelPlan={channelPlan}
+              planId={planId}
               onFlipBack={handleFlipBack}
             />
           )}
